@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Grocery List with FastAPI</title>
+    <style>
+        /* Global Reset & Body */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Poppins", sans-serif;
+        }
+
+        body {
+            background-color: #f8f8f8;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        h1 {
+            margin-bottom: 1rem;
+            text-align: center;
+            font-size: 2rem;
+            color: #333;
+            letter-spacing: 0.5px;
+        }
+
+        .search-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+
+        /* Search Input */
+        #groceryInput {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #ccc;
+            border-radius: 25px;
+            font-size: 1rem;
+            outline: none;
+            transition: box-shadow 0.3s ease;
+            background-color: #fff;
+        }
+
+        #groceryInput:focus {
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Suggestions Box */
+        #suggestions {
+            position: absolute;
+            top: 105%;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+            display: none;
+            z-index: 999;
+            animation: fadeInUp 0.3s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .suggestion-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            color: #555;
+        }
+
+        .suggestion-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Grocery List */
+        #groceryList {
+            list-style: none;
+            width: 100%;
+            max-width: 600px;
+            margin-top: 1rem;
+            padding: 0;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #groceryList li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+            font-size: 1rem;
+            color: #333;
+        }
+
+        #groceryList li:last-child {
+            border-bottom: none;
+        }
+
+        /* Delete Button */
+        .delete-btn {
+            background-color: transparent;
+            border: none;
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            color: #c0392b;
+        }
+
+        /* Submit Button - Aesthetic Yellow */
+        #submitButton {
+            margin-top: 1.5rem;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 25px;
+            background-color: #f1c40f;
+            color: #333;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        #submitButton:hover {
+            background-color: #f39c12;
+        }
+
+        /* Modal Popup Styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 2rem;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 400px;
+            border-radius: 10px;
+            text-align: center;
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-btn:hover,
+        .close-btn:focus {
+            color: #000;
+            text-decoration: none;
+        }
+
+        /* Modal Confirm Button */
+        .modal-content button {
+            margin-top: 1rem;
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #f1c40f;
+            color: #333;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .modal-content button:hover {
+            background-color: #f39c12;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>What would you like to add to your grocery list?</h1>
+    <div class="search-container">
+        <input type="text" id="groceryInput" placeholder="Type an item..." autocomplete="off" />
+        <div id="suggestions"></div>
+    </div>
+
+    <ul id="groceryList"></ul>
+
+    <!-- Submit Button -->
+    <button id="submitButton">Done</button>
+
+    <!-- Modal Popup -->
+    <div id="popupModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <p>You will receive an email shortly.</p>
+            <button id="confirmButton">OK</button>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('groceryInput');
+        const suggestionsBox = document.getElementById('suggestions');
+        const groceryList = document.getElementById('groceryList');
+        const submitButton = document.getElementById('submitButton');
+        const popupModal = document.getElementById('popupModal');
+        const closeBtn = document.querySelector('.close-btn');
+        const confirmButton = document.getElementById('confirmButton');
+
+        let currentSuggestions = [];
+        let groceryItems = [];
+
+        // Update suggestions as the user types
+        input.addEventListener('input', async (e) => {
+            const query = e.target.value.trim();
+            if (query.length === 0) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+
+            try {
+                // Ensure the URL matches your FastAPI endpoint
+                const url = `http://127.0.0.1:8000/search?term=${encodeURIComponent(query)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                currentSuggestions = data.suggestions || [];
+                renderSuggestions(currentSuggestions);
+            } catch (err) {
+                console.error('Error fetching suggestions:', err);
+            }
+        });
+
+        // Press enter to add the first suggestion or typed text
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const query = input.value.trim();
+                if (!query) return;
+
+                if (currentSuggestions.length > 0) {
+                    addItemToList(currentSuggestions[0]);
+                } else {
+                    addItemToList(query);
+                }
+                suggestionsBox.style.display = 'none';
+                input.value = '';
+            }
+        });
+
+        // Render suggestions in the dropdown
+        function renderSuggestions(suggestions) {
+            suggestionsBox.innerHTML = '';
+            if (suggestions.length === 0) {
+                suggestionsBox.style.display = 'none';
+                return;
+            }
+
+            suggestions.forEach((suggestion) => {
+                const div = document.createElement('div');
+                div.classList.add('suggestion-item');
+                div.textContent = suggestion;
+
+                div.addEventListener('click', () => {
+                    addItemToList(suggestion);
+                    suggestionsBox.style.display = 'none';
+                    input.value = '';
+                });
+
+                suggestionsBox.appendChild(div);
+            });
+
+            suggestionsBox.style.display = 'block';
+        }
+
+        // Add item to the grocery list
+        function addItemToList(itemName) {
+            if (groceryItems.includes(itemName)) return;
+
+            groceryItems.push(itemName);
+            const li = document.createElement('li');
+
+            const span = document.createElement('span');
+            span.textContent = itemName;
+
+            const button = document.createElement('button');
+            button.innerHTML = '×';
+            button.className = 'delete-btn';
+            button.addEventListener('click', () => {
+                groceryList.removeChild(li);
+                groceryItems = groceryItems.filter(item => item !== itemName);
+            });
+
+            li.appendChild(span);
+            li.appendChild(button);
+            groceryList.appendChild(li);
+        }
+
+        // When the Done button is clicked, show the modal before submitting
+        submitButton.addEventListener('click', () => {
+            popupModal.style.display = 'block';
+        });
+
+        // When the modal confirm button is clicked, submit the data to the server
+        confirmButton.addEventListener('click', async () => {
+            popupModal.style.display = 'none';
+            try {
+                const response = await fetch('http://127.0.0.1:8000/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(groceryItems),
+                });
+
+                const data = await response.json();
+                console.log('Server Response:', data);
+            } catch (err) {
+                console.error('Error submitting grocery list:', err);
+            }
+        });
+
+        // Close modal if the user clicks the close (×) button
+        closeBtn.addEventListener('click', () => {
+            popupModal.style.display = 'none';
+        });
+
+        // Also close modal if the user clicks outside of the modal content
+        window.addEventListener('click', (event) => {
+            if (event.target === popupModal) {
+                popupModal.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,10 @@
+# Ignore specific folders that should NOT be pushed
+.git/
+pythonProject/
+video/
+
+# Ignore unwanted files inside fastAPI
+fastAPI/venv/
+fastAPI/.env
+fastAPI/.idea/
+fastAPI/__pycache__/
